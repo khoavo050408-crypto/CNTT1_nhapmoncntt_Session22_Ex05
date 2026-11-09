@@ -1,92 +1,103 @@
-# BÁO CÁO PHÂN TÍCH THEO MÔ HÌNH IPO VÀ THIẾT KẾ PROMPT KIỂM CHỨNG AI
+# QUY TRÌNH TROUBLESHOOTING NỘI BỘ & BUG REPORT TEMPLATE
 
----
+## I. QUY TRÌNH 3 BƯỚC TRA CỨU BẮT BUỘC (SELF-TROUBLESHOOTING)
+*Mục tiêu: Đảm bảo 80% các lỗi phổ biến về môi trường (Docker, Port conflict, Env...) được tự giải quyết trước khi gửi yêu cầu hỗ trợ lên kênh chat chung.*
 
-## 1. Báo cáo Phân tích Mô hình IPO (Input - Process - Output)
-
-### **INPUT (Đầu vào)**
-*   **Thông tin từ AI cung cấp:** Đoạn lệnh Terminal/Command Prompt nghi vấn do AI đưa ra để xử lý lỗi "Path not found" khi cài đặt Python.
-*   **Ngữ cảnh hệ thống:** Hệ điều hành hiện tại (Windows, macOS hoặc Linux), phiên bản Python đang sử dụng và biến môi trường `PATH`.
-*   **Tín hiệu cảnh báo (Red Flags):** 
-    *   Lệnh có chứa các quyền quản trị cao nhất (`sudo`, `Run as Administrator`).
-    *   Lệnh xóa hoặc ghi đè thư mục/biến hệ thống nguy hiểm (`rm -rf`, `reg delete`, `setx PATH`).
-    *   Cú pháp lạ không có trong tài liệu chính thức của Python.
-
----
-
-### **PROCESS (Quy trình kiểm chứng thông tin)**
-
-Để xác minh lệnh từ AI có bị hiện tượng **AI Hallucination** hoặc gây nguy hại hệ thống hay không, thực hiện quy trình 4 bước kiểm chứng:
-
-#### **Bước 1: Phân rã cấu trúc câu lệnh**
-Tách câu lệnh thành từng thành phần để hiểu rõ mục đích:
-*   *Tiền tố quyền:* `sudo` / `powershell -Command` (Có yêu cầu quyền Root/Admin không?)
-*   *Hành động chính:* `setx`, `export`, `rm`, `echo` (Sửa biến môi trường, ghi đè file hay xóa dữ liệu?)
-*   *Đường dẫn tác động:* Cấu hình hệ thống hay chỉ ở cấp người dùng (`User variables` vs `System variables`).
-
-#### **Bước 2: Tra cứu trên trang chủ và nguồn đáng tin cậy bằng toán tử `site:`**
-Sử dụng các công cụ tìm kiếm với các cú pháp tìm kiếm nâng cao:
-*   **Kiểm tra tài liệu chính thức của Python:**
-    ```text
-    site:docs.python.org "PATH" "environment variables"
-    ```
-*   **Tra cứu thảo luận cộng đồng trên StackOverflow:**
-    ```text
-    site:stackoverflow.com "Python" "Path not found" [Tên_câu_lệnh_nghi_vấn]
-    ```
-*   **Kiểm tra tài liệu hệ điều hành (Microsoft Docs / Apple Support):**
-    ```text
-    site:learn.microsoft.com "setx PATH" python
-    ```
-
-#### **Bước 3: Đối chiếu & Đánh giá rủi ro**
-*   **Trường hợp 1 (An toàn):** Lệnh xuất hiện nhiều trên StackOverflow với lượng Upvote lớn, khớp với hướng dẫn trên trang chủ Python/Microsoft, chỉ tác động đến tài khoản user hiện tại.
-*   **Trường hợp 2 (Hallucination / Sai lệch):** Lệnh không tìm thấy bất kỳ kết quả nào trên `docs.python.org` hoặc `stackoverflow.com`. Cú pháp bị pha trộn giữa Linux (`export`) và Windows (`set`).
-*   **Trường hợp 3 (Độc hại / Nguy hiểm):** Lệnh ghi đè hoàn toàn biến `PATH` hiện có (ví dụ: `setx PATH "C:\Python"` thay vì `setx PATH "%PATH%;C:\Python"` - làm mất toàn bộ đường dẫn của các phần mềm khác trên Windows).
-
----
-
-### **OUTPUT (Đầu ra)**
-*   **Bản Đánh giá An toàn (Decision Matrix):**
-    *   **XÁC NHẬN AN TOÀN:** Tiến hành chạy lệnh trong Terminal/Command Prompt.
-    *   **XÁC NHẬN KHÔNG AN TOÀN / SAI LỆCH:** Loại bỏ câu lệnh. Chuyển sang phương pháp chỉnh sửa thủ công qua giao diện đồ họa (GUI) như `Edit the system environment variables` trên Windows hoặc dùng công cụ chính thức (`pyenv`, installer lại).
-*   **Nhật ký kiểm chứng (Audit Log):** Ghi lại lý do chấp nhận/từ chối lệnh để làm tư liệu tham khảo cho các lần sau.
-
----
-
-## 2. Thiết kế Câu lệnh (Prompt) "Hỏi ngược lại" AI
-
-Để yêu cầu AI giải thích chi tiết, tự kiểm tra Hallucination và cam kết độ an toàn trước khi thực thi, bạn sử dụng mẫu Prompt 3 bước dưới đây:
-
-### 📋 Mẫu Prompt tổng quát (Copy & Paste)(nguồn gemini)
-
-```text
-Trước khi tôi chạy câu lệnh bạn vừa cung cấp vào Terminal, hãy đóng vai một Chuyên gia An ninh Hệ thống và Kiểm định Phần mềm để phân tích cho tôi:
-
-1. Đọc lại câu lệnh: [Dán câu lệnh nghi vấn của AI vào đây]
-2. Giải thích chi tiết: 
-   - Từng tham số/từ khóa trong lệnh trên có ý nghĩa gì?
-   - Lệnh này tác động đến file, thư mục hay biến môi trường nào của hệ thống?
-   - Lệnh này dành riêng cho Hệ điều hành nào (Windows, macOS hay Linux)?
-3. Phân tích rủi ro & An toàn:
-   - Lệnh này có làm mất dữ liệu, ghi đè biến hệ thống hay yêu cầu quyền Root/Admin nguy hiểm không?
-   - Đây có phải là câu lệnh chuẩn từ tài liệu chính thức (Official Docs) hay giải pháp phổ biến trên StackOverflow không?
-4. Phương án thay thế an toàn hơn:
-   - Có cách nào thực hiện điều này bằng giao diện đồ họa (GUI) mà không cần dùng câu lệnh này không?
-
-Hãy xác nhận lại một lần nữa xem câu lệnh trên có bị lỗi "Hallucination" (tạo ra lệnh không chính xác) hay không trước khi khuyên tôi thực thi.
+```
+[Bắt đầu gặp lỗi]
+       │
+       ▼
+ ┌───────────┐      Thành công
+ │  Bước 1   │ ───────────────────► [Đã giải quyết bug]
+ │ Googling  │
+ └─────┬─────┘
+       │ Thất bại
+       ▼
+ ┌───────────┐      Thành công
+ │  Bước 2   │ ───────────────────► [Đã giải quyết bug]
+ │ Community │
+ └─────┬─────┘
+       │ Thất bại
+       ▼
+ ┌───────────┐      Thành công
+ │  Bước 3   │ ───────────────────► [Đã giải quyết bug]
+ │    AI     │
+ └─────┬─────┘
+       │ Thất bại
+       ▼
+ [Điền Bug Report Form & Gửi vào nhóm]
 ```
 
 ---
 
-## 3. Ví dụ minh họa thực tế (Case Study)
+### Bước 1: Googling (Tra cứu bằng từ khóa chuẩn)
+* **Quy tắc search:** Bỏ các từ vô nghĩa (như *"how to fix"*, *"help me"*). Chỉ giữ lại **[Tên công cụ/Thư viện] + [Mã lỗi hoặc Thông báo lỗi chính] + [Hệ điều hành/Phiên bản]**.
+* **Công thức tìm kiếm nâng cao (Search Operators):**
+  * Tìm kiếm chính xác cụm từ lỗi: `"port is already allocated"`
+  * Giới hạn trang tìm kiếm: `site:stackoverflow.com "docker-compose up"`
+  * Loại trừ thông tin nhiễu: `docker port conflict -kubernetes`
+* **Thời gian tối đa:** 5 - 10 phút.
 
-### Kịch bản
-AI bảo bạn chạy lệnh Windows PowerShell sau:
-`setx PATH "C:\Python311"`
+---
 
-### Áp dụng Mô hình IPO & Kiểm chứng:
-1. **Phân tích lệnh:** Lệnh `setx PATH "C:\Python311"` sẽ **ghi đè hoàn toàn** biến `PATH` của người dùng, khiến tất cả ứng dụng khác (Git, Node.js, VS Code...) không thể truy cập được từ Command Line.
-2. **Kiểm tra `site:stackoverflow.com`:** Tra cứu `site:stackoverflow.com "setx PATH" overwrites` sẽ thấy hàng loạt cảnh báo nguy hiểm về việc thiếu dấu `%PATH%`.
-3. **Kết luận Output:** **KHÔNG AN TOÀN**.
-4. **Lệnh sửa đúng:** `setx PATH "%PATH%;C:\Python311"` hoặc chỉnh sửa qua đường dẫn GUI `Environment Variables`.
+### Bước 2: Community Search (Tra cứu trên GitHub Issues & Forums)
+* **Kênh tìm kiếm:** Tìm trực tiếp trên trang **GitHub Issues** của kho mã nguồn (Repository) đang dùng hoặc StackOverflow.
+* **Bộ lọc ưu tiên:**
+  1. Đọc các issue có nhãn `closed` (đã sửa xong) hoặc `OPEN` có nhiều reaction (👍, ❤️).
+  2. Ưu tiên giải phát có bình luận gần đây (đặc biệt với Windows 11 / macOS Apple Silicon).
+* **Quy tắc tìm Workaround:** Tìm giải pháp tạm thời (workaround) nếu issue chưa có bản vá chính thức.
+
+---
+
+### Bước 3: AI Translation & Analysis (Dịch & Phân tích bằng AI)
+* **Đưa ngữ cảnh cho AI:** Không hỏi chung chung. Cung cấp log lỗi + đoạn mã hiện tại.
+* **Sử dụng Prompt chuẩn phân tích lỗi:**
+  > *"Tôi đang gặp lỗi sau khi chạy lệnh [Tên lệnh] trên môi trường [Hệ điều hành/Docker version]. Đây là log lỗi chi tiết: [Dán Log]. Hãy: 1. Dịch thông báo lỗi sang tiếng Việt dễ hiểu. 2. Nguyên nhân gốc rễ (Root cause) gây ra lỗi này là gì? 3. Cho tôi 2-3 hướng khắc phục kèm lệnh cụ thể."*
+* **Cảnh báo an toàn (Anti-Hallucination):** Trước khi chạy các lệnh can thiệp hệ thống nguy hiểm (`rm -rf`, `sudo`, `setx PATH`), bắt buộc áp dụng Prompt kiểm chứng an toàn.
+
+---
+
+## II. BUG REPORT TEMPLATE (MẪU BÁO CÁO LỖI NỘI BỘ)
+
+> **Quy định chung:** Thành viên **bắt buộc** điền đầy đủ mẫu sau vào kênh support (ví dụ: `#dev-help` trên Slack/Discord) khi cả 3 bước tra cứu tự động không thành công. Bài đăng không tuân thủ mẫu sẽ bị từ chối hỗ trợ.
+
+```markdown
+### 🐛 BUG REPORT: [Tóm tắt lỗi ngắn gọn]
+
+#### 1. Context (Ngữ cảnh môi trường)
+- **Hệ điều hành:** [Ví dụ: Windows 11 / macOS Sonoma M2 / Ubuntu 22.04]
+- **Công cụ/Môi trường:** [Ví dụ: Docker v24.0.5 / Node.js v18 / Python 3.11]
+- **Nhánh Git / Service bị ảnh hưởng:** [Ví dụ: branch `feature/auth` - Service `backend-api`]
+- **Hành động dẫn đến lỗi:** [Ví dụ: Chạy lệnh `docker-compose up` sau khi pull code mới về]
+
+#### 2. Expected (Kết quả kỳ vọng)
+- [Mô tả chi tiết những gì đáng lẽ phải xảy ra. Ví dụ: Container `backend` khởi chạy thành công ở port 8080 và kết nối tới DB].
+
+#### 3. Actual (Kết quả thực tế xảy ra)
+- [Mô tả hành vi lỗi xảy ra. Ví dụ: Container báo lỗi gán port và tự động thoát (exit status 1)].
+
+#### 4. Log & Visuals (Nhật ký lỗi & Hình ảnh)
+- **Terminal Log (Dạng Text Code Block):**
+```text
+[Dán toàn bộ đoạn log lỗi chi tiết vào đây - KHÔNG CHỤP ẢNH MÀN HÌNH ĐỐI VỚI TEXT LOG]
+```
+- **Ảnh màn hình (nếu có lỗi trên giao diện GUI):**
+[Chèn ảnh chụp tại đây]
+
+---
+
+#### 🔍 Kết quả sau 3 bước tự tra cứu (Bắt buộc điền)
+- [x] **Googling:** Đã thử tìm cụm từ `...` nhưng chỉ thấy hướng dẫn cho Mac, máy hiện tại dùng Windows.
+- [x] **Community:** Đã xem GitHub Issue #1234, thử cách đổi port `8080:8080` thành `8081:8080` nhưng vẫn báo bận.
+- [x] **AI Analysis:** AI báo lỗi do tiến trình PID `4123` chiếm port, đã thử `kill` nhưng báo `Permission Denied`.
+```
+
+---
+
+## III. QUY TẮC VẬN HÀNH TRÁNH TRÔI THÔNG TIN (CHAT OPS RULES)
+
+1. **Một chủ đề = Một Thread:** Mọi thảo luận, hỏi đáp giải quyết lỗi bắt buộc phải nằm trong **Thread (Luồng)** của bài Bug Report đó. Không nhắn tin rời rạc vào channel chung.
+2. **Đánh dấu trạng thái:**
+   * 🟡 `[IN PROGRESS]`: Đang có người tiếp nhận hỗ trợ.
+   * ✅ `[RESOLVED]`: Đã sửa xong. Người gửi lỗi phải reply lại vào Thread đáp án/cách xử lý thành công để lưu làm tài liệu cho người sau.
+3. **Knowledge Base (Kho tri thức nội bộ):** Các lỗi lặp lại từ 2 lần trở lên sẽ được tổng hợp lại thành 1 trang *FAQ/Troubleshooting* trên Notion hoặc Wiki của nhóm.
